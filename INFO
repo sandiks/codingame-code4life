@@ -1,0 +1,214 @@
+   exp_sum = my_expert_sum
+    exp_min = @my_expert.min
+    exp_max = @my_expert.max
+    scoremy = @my.score
+    scoreop = @opp.score
+
+        first=@my_samples.first
+      rank1 =sampl_size==2 && first.rank==1
+      rank2 =sampl_size>0 && first.rank>=2 && is_fit( first.cost, @avail_store, @my_expert)
+      go_sampl = opp_rank.max>2 && sampl_size==1
+      go_sampl1 = opp_rank.max==1 && sampl_size==1
+      go_mol1 = (trg_2(@opp)||trg_3(@opp)) &&  sampl_size==2
+      go_mol2 = my_rank.max==3
+      go_attack_mol3 = my_storage_sum<3 && trg_3(@opp) #&& opp_smpl_max_cost>3
+
+
+#good sample {mysamples, avail_store, my_expertise}
+if is_fit( @my_samples.first.cost, @avail_store, @my_expert)
+
+my_storage_sum
+
+--------module_operation
+sampl_load_undiag
+
+tocloud tosample fromcloud
+
+mol:collect-mols
+
+
+SAMPLES
+id carried_by(0-my,1-robot,-1 free), rank, gain, health, cost
+
+A game is played with 2 players. Each player controls one robot.
+
+The complex is composed of 3 modules named DIAGNOSIS, MOLECULES and LABORATORY. 
+The robots can transfer two types of items from and to the modules: sample data files and molecules.
+
+In a nutshell, you have to optimize your robot movements to:
+Collect sample data files from the cloud at the DIAGNOSIS module.
+Gather required molecules for the medicines at the MOLECULES module.
+Produce the medicines at the LABORATORY module and collect your health points.
+
+
+The robots
+Each player has one robot. Both robots have the same starting position.
+A robot can carry up to 3 sample data files and 10 molecules.
+A player can move their robot from one module to another by means of the GOTO module command.
+Once the robot is at a module's interface, it can connect to it with the CONNECT command. This will have a different effect for each module.
+Sample data
+A sample data file is an item representing all known data on a tissue sample collected from an untreated patient. Researching this sample may ultimately lead to the production of medicine to prolong the lives of all patients with the same ailment.
+A sample data is associated with the list of molecules needed to produce the medicine for that sample.
+A sample data will grant you a variable number of health points when you research it.
+Molecules
+A molecule can be one of five types: A, B, C, D or E.
+
+
+---------
+
+  def  parse_data_f
+    lines = File.readlines("data0.txt")
+
+    @players =[]
+
+    2.times do |idx|
+      target, eta, score, str_a, str_b, str_c, str_d, str_e, exp_a, exp_b, exp_c, exp_d, exp_e = lines[idx].split(" ")
+      pp = Player.new
+      pp.target =target
+      pp.eta  =eta.to_i
+      pp.score  =score.to_i
+      pp.storage  =[str_a.to_i, str_b.to_i, str_c.to_i, str_d.to_i, str_e.to_i]
+      pp.expertise  =[exp_a.to_i, exp_b.to_i, exp_c.to_i, exp_d.to_i, exp_e.to_i]
+      @players <<pp
+    end
+
+    @avail_store = lines[2].split(" ").map{|x| x.to_i}
+
+    sample_count = lines[3].to_i
+    @samples=[]
+
+    sample_count.times do |idx|
+      sample_id, carried_by, rank, expertise_gain, health, cost_a, cost_b, cost_c, cost_d, cost_e = lines[4+idx].split(" ")
+
+      ss = Sample.new
+      ss.id = sample_id.to_i
+      ss.carried_by = carried_by.to_i
+      ss.rank = rank.to_i
+      ss.expertise_gain = expertise_gain
+      ss.health = health.to_i
+      ss.cost=[cost_a.to_i,cost_b.to_i,cost_c.to_i,cost_d.to_i,cost_e.to_i]
+
+      @samples<<ss
+    end
+  end
+---------------------
+  #p ff =  @opp_samples.map { |ss| conv_store_to_bag(ss.cost)}.flatten(1).sort_by{|ss| -ss[1]}
+  unless @intercept_max
+    p bag_ss =  @opp_samples.map { |ss| conv_store_to_bag(ss.cost)}
+    p min_pairs = 5.times.map{ |i| min = bag_ss.map{|ss| ss[i]}.select{|mm| mm[1]>0}.min }
+min_pairs.map { |mm| i=mm[]; (@opp.storage[i]+@opp.expertise[i]+@avail_store[i]-mm[1])  }
+    
+    #.sort_by{|mm| i=mm[0]; @opp.storage[i]+@opp.expertise[i]+@avail_store[i]-mm[1] }
+    #p @intercept_max = ff.sort_by{|ss|  i=ss[0]; (@opp.storage[i]+@opp.expertise[i]+@avail_store[i]-ss[1])}
+    #p ff.sort_by{|ss| (@opp.storage[ss[0]]+@opp.expertise[ss[0]]+@avail_store[ss[0]]-ss[1])}.map{|ss|  i=ss[0]; (@opp.storage[i]+@opp.expertise[i]+@avail_store[i]-ss[1])}
+  end
+  -----------------------
+
+  def mol_process_connect
+
+    #move mol into store
+    mm = @best_sample_mols.sort_by { |mm| mm[1]  }.last
+
+    if mm && mm[1]>0 && my_storage_sum<10
+      idx=mm[0]
+
+      if @avail_store[idx]>0
+        mm[1]-=1
+        printf("CONNECT #{@mol_names[idx]} id:#{@curr_mol_sample.id} берем таблетку #{print_sample(@curr_mol_sample)}\n")
+      else
+        #######
+        ####change to new
+        mys = samples_myfit_store(@my_samples)
+
+        if mys.any?
+          @curr_mol_sample = mys.first
+          @best_sample_mols=nil
+
+        elsif trg_3(@opp)
+          printf("WAIT ждем таблетки\n")
+
+        elsif @my_samples.size<2
+          goto_sample("заказ новых рецептов")
+
+        else
+          goto_diag(["tocloud","tosample"], "нет рецептов, бежим в облако")
+        end
+      end
+    elsif trg_3(@opp)
+      printf("WAIT ждем таблетки\n")
+    else
+      goto_diag(["tocloud","tosample"],"больше 10 таблеток")
+    end
+
+  end
+-----------
+  def process_mol
+    @last_pos =2
+
+    ###finished
+    finished = samples_myfit_store(@my_samples).sort_by(&:cost_max).last
+    if finished #&& my_storage_sum>8
+      goto_lab("я побежало с таблетками на базу")
+      return
+    end
+
+    fitted_samples = samples_myfit_store_avail(@my_samples).sort_by(&:cost_max)
+    ids = fitted_samples.map { |e| e.id  }
+    arr = fitted_samples.map(&:cost)
+    printedarr = arr.map { |aa| print_store_array(aa)}
+
+    if arr.size>0
+      diff0 = sub_a(arr[0],@my_expert)
+      diff1 =  arr.size>1 ? sub_a(arr[1],@my_expert) : [0,0,0,0,0]
+      ssum = add_a(diff0,diff1)
+
+      printed =false
+      @offset=@offset||1
+
+      5.times do |i|
+        idx = i #(i+@offset)%5
+        if  @avail_store[idx]>0 && my_storage_sum<10
+
+          printed = if diff0[idx]>@my_store[idx]; true
+          elsif diff1[idx]>@my_store[idx]; true
+          elsif ssum[idx]>@my_store[idx]; true
+          else false
+          end
+          if printed; @offset =idx; break; end
+        end
+      end
+
+      if printed
+        print_mol(@offset, printedarr)
+      else
+        printf("WAIT samples:#{printedarr} ждем таблетки\n")
+      end
+    else
+      if trg_3(@opp)
+        printf("WAIT ждем таблетки\n")
+      else
+        goto_diag(["tocloud","tosample"], "нет рецептов, бежим в облако")
+      end
+    end
+  end
+---------------------------
+      ##bad samples with rank 1
+      #&& !is_fit(ff.cost, @avail_store, @my_expert )
+      ss = @my_samples.select{|ss|ss.rank==1}.first
+      if ss &&@my_expert[char_to_index(ss.expertise_gain)]>1
+        load_to_cloud(ss);return
+      end
+      ss = @my_samples.select{|ss|ss.rank==2}.sort_by(&:cost_max).last
+      if ss &&@my_expert[char_to_index(ss.expertise_gain)]>2
+        load_to_cloud(ss);return
+      end
+      if false
+        ss = @my_samples.select{|ss|ss.cost.max >5}.first
+        if ss &&@my_expert[char_to_index(ss.expertise_gain)]<4 && !is_fit_two_store(ss.cost,@my_store, @avail_store, @my_expert )
+          load_to_cloud(ss);return
+        end
+        ss = @my_samples.select{|ss|ss.cost.max >3}.first
+        if ss &&@my_expert[char_to_index(ss.expertise_gain)]<2 && !is_fit_two_store(ss.cost,@my_store, @avail_store, @my_expert )
+          load_to_cloud(ss);return
+        end
+      end
