@@ -1,0 +1,25 @@
+Code4Life contest
+======
+
+A game is played with 2 players. Each player controls one robot.
+
+The complex is composed of 3 modules named DIAGNOSIS, MOLECULES and LABORATORY. 
+The robots can transfer two types of items from and to the modules: sample data files and molecules.
+
+In a nutshell, you have to optimize your robot movements to:
+Collect sample data files from the cloud at the DIAGNOSIS module.
+Gather required molecules for the medicines at the MOLECULES module.
+Produce the medicines at the LABORATORY module and collect your health points.
+
+
+The robots
+Each player has one robot. Both robots have the same starting position.
+A robot can carry up to 3 sample data files and 10 molecules.
+A player can move their robot from one module to another by means of the GOTO module command.
+Once the robot is at a module's interface, it can connect to it with the CONNECT command. This will have a different effect for each module.
+Sample data
+A sample data file is an item representing all known data on a tissue sample collected from an untreated patient. Researching this sample may ultimately lead to the production of medicine to prolong the lives of all patients with the same ailment.
+A sample data is associated with the list of molecules needed to produce the medicine for that sample.
+A sample data will grant you a variable number of health points when you research it.
+Molecules
+A molecule can be one of five types: A, B, C, D or E.
